@@ -60,7 +60,7 @@ public class MapServerMapReader extends HTTPMapReader {
         super(context, params);
         layers.add(layer);
         format = params.getString("format");
-        mapfile = params.getString("mapfile");
+        mapfile = params.getString("map");
     }
 
     protected void renderTiles(TileRenderer formatter, Transformer transformer, URI commonUri, ParallelMapTileLoader parallelMapTileLoader) throws IOException {
