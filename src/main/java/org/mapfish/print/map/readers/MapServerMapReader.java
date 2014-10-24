@@ -53,6 +53,7 @@ public class MapServerMapReader extends HTTPMapReader {
     }
 
     private final String format;
+    private final String mapfile;
     protected final List<String> layers = new ArrayList<String>();
 
     private MapServerMapReader(String layer, RenderingContext context, PJsonObject params) {
