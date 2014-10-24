@@ -34,7 +34,7 @@ import org.mapfish.print.utils.PJsonObject;
 import org.pvalsecc.misc.StringUtils;
 import org.pvalsecc.misc.URIUtils;
 
-public class MapServerMapReader extends HTTPMapReader {
+public class ArcGISServerMapReader extends HTTPMapReader {
 
 
     public static class Factory implements MapReaderFactory {
@@ -45,7 +45,7 @@ public class MapServerMapReader extends HTTPMapReader {
             PJsonArray layers = params.getJSONArray("layers");
             for (int i = 0; i < layers.size(); i++) {
                 String layer = layers.getString(i);
-                target.add(new MapServerMapReader(layer, context, params));
+                target.add(new ArcGISServerMapReader(layer, context, params));
             }
             return target;
         }
@@ -55,15 +55,14 @@ public class MapServerMapReader extends HTTPMapReader {
     private final String format;
     protected final List<String> layers = new ArrayList<String>();
 
-    private MapServerMapReader(String layer, RenderingContext context, PJsonObject params) {
+    private ArcGISServerMapReader(String layer, RenderingContext context, PJsonObject params) {
         super(context, params);
         layers.add(layer);
         format = params.getString("format");
-        mapfile = params.getString("mapfile");
     }
 
     protected void renderTiles(TileRenderer formatter, Transformer transformer, URI commonUri, ParallelMapTileLoader parallelMapTileLoader) throws IOException {
-        //tiling not supported and not really needed (tilecache doesn't support this protocol) for MapServer protocol...
+        //tiling not supported and not really needed (tilecache doesn't support this protocol) for ArcGIS Server protocol...
         List<URI> uris = new ArrayList<URI>(1);
         uris.add(commonUri);
         formatter.render(transformer, uris, parallelMapTileLoader, context, opacity, 1, 0, 0,
@@ -81,7 +80,7 @@ public class MapServerMapReader extends HTTPMapReader {
     }
 
     protected void addCommonQueryParams(Map<String, List<String>> result, Transformer transformer, String srs, boolean first) {
-
+        final String t_srs;
         // Use mapserver rotation
         URIUtils.addParamOverride(result, "map_angle", String.valueOf(-Math.toDegrees(transformer.getRotation())));
         transformer.setRotation(0);
@@ -89,25 +88,26 @@ public class MapServerMapReader extends HTTPMapReader {
         final long w;
         final long h;
         if (format.equals("image/svg+xml")) {
-            URIUtils.addParamOverride(result, "map_imagetype", "svg");
+            URIUtils.addParamOverride(result, "FORMAT", "svg");
             w = transformer.getRotatedSvgW();
             h = transformer.getRotatedSvgH();
         } else if (format.equals("application/x-pdf")) {
-            URIUtils.addParamOverride(result, "MAP_IMAGETYPE", "pdf");
+            URIUtils.addParamOverride(result, "FORMAT", "pdf");
             w = transformer.getRotatedBitmapW();
             h = transformer.getRotatedBitmapH();
         } else {
-            URIUtils.addParamOverride(result, "MAP_IMAGETYPE", "png");
+            URIUtils.addParamOverride(result, "FORMAT", "png");
             w = transformer.getRotatedBitmapW();
             h = transformer.getRotatedBitmapH();
         }
-        URIUtils.addParamOverride(result, "MODE", "map");
+        t_srs = "102113";
         URIUtils.addParamOverride(result, "LAYERS", StringUtils.join(layers, " "));
-        //URIUtils.addParamOverride(result, "SRS", srs);
-        URIUtils.addParamOverride(result, "map", mapfile);
-        URIUtils.addParamOverride(result, "MAP_SIZE", String.format("%d %d", w, h));
-        URIUtils.addParamOverride(result, "MAPEXT", String.format("%s %s %s %s", transformer.getRotatedMinGeoX(), transformer.getRotatedMinGeoY(), transformer.getRotatedMaxGeoX(), transformer.getRotatedMaxGeoY()));
-        URIUtils.addParamOverride(result, "map_resolution", String.valueOf(transformer.getDpi()));
+        URIUtils.addParamOverride(result, "F", "image");
+        URIUtils.addParamOverride(result, "BBOXSR", t_srs);
+        URIUtils.addParamOverride(result," IMAGESR",String.format("%s",t_srs));
+        URIUtils.addParamOverride(result, "SIZE", String.format("%d %d", w, h));
+        URIUtils.addParamOverride(result, "BBOX", String.format("%s %s %s %s", transformer.getRotatedMinGeoX(), transformer.getRotatedMinGeoY(), transformer.getRotatedMaxGeoX(), transformer.getRotatedMaxGeoY()));
+        URIUtils.addParamOverride(result, "DPI", String.valueOf(transformer.getDpi()));
         if (!first) {
             URIUtils.addParamOverride(result, "TRANSPARENT", "true");
         }
@@ -115,7 +115,7 @@ public class MapServerMapReader extends HTTPMapReader {
 
     public boolean testMerge(MapReader other) {
         if (canMerge(other)) {
-            MapServerMapReader ms = (MapServerMapReader) other;
+            ArcGISServerMapReader ms = (ArcGISServerMapReader) other;
             layers.addAll(ms.layers);
             return true;
         }
@@ -127,8 +127,8 @@ public class MapServerMapReader extends HTTPMapReader {
             return false;
         }
 
-        if (other instanceof MapServerMapReader) {
-            MapServerMapReader wms = (MapServerMapReader) other;
+        if (other instanceof ArcGISServerMapReader) {
+            ArcGISServerMapReader wms = (ArcGISServerMapReader) other;
             return format.equals(wms.format);
         } else {
             return false;
